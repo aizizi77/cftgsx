@@ -778,13 +778,17 @@ function createUserInfo(message) {
   const chatId = chat.id
   const time = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
   
+  // 为Markdown渲染转义动态文本，避免解析错误
+  const escapedDisplayName = escapeMarkdown(displayName)
+  const escapedUsernameForHeader = username ? escapeMarkdown(`@${username}`) : ''
+
   return {
     userName: displayName,
     username: username, // 原始username，可能为null
     userId,
     chatId,
     time,
-    header: `📩 *来自用户: ${displayName}*\n🆔 ID: \`${userId}\`${username ? `\n👤 用户名: @${username}` : ''}\n⏰ 时间: ${time}\n────────────────────`
+    header: `📩 *来自用户: ${escapedDisplayName}*\n🆔 ID: \`${userId}\`${username ? `\n👤 用户名: ${escapedUsernameForHeader}` : ''}\n⏰ 时间: ${time}\n────────────────────`
   }
 }
 
@@ -793,13 +797,14 @@ async function sendMediaReplyToUser(userChatId, adminChatId, messageId, original
   try {
     // 构建回复前缀（使用纯文本格式，避免Markdown解析问题）
     const replyPrefix = '💬 管理员回复:';
-    const fullCaption = originalCaption 
-      ? `${replyPrefix}\n\n${originalCaption}` 
+    const escapedCaption = originalCaption ? escapeMarkdown(originalCaption) : ''
+    const fullCaption = escapedCaption 
+      ? `${replyPrefix}\n\n${escapedCaption}` 
       : replyPrefix;
     
     // 检查caption长度限制（Telegram限制为1024字符）
     const finalCaption = fullCaption.length > 1024 
-      ? `${replyPrefix}\n\n${originalCaption.substring(0, 1024 - replyPrefix.length - 4)}...`
+      ? `${replyPrefix}\n\n${escapedCaption.substring(0, 1024 - replyPrefix.length - 4)}...`
       : fullCaption;
     
     // 尝试发送带caption的媒体消息
@@ -876,9 +881,10 @@ async function handleUserMessage(message, env) {
     
     if (message.text) {
       // 文本消息
+      const escapedUserText = escapeMarkdown(message.text)
       const forwardText = env.ENABLE_FORUM_MODE === 'true' && messageOptions.message_thread_id
-        ? `📝 *新消息:*\n${message.text}\n\n📍 *来源:* ${secureUserTag}`
-        : `${userInfo.header}\n📝 *消息内容:*\n${message.text}\n\n📍 *来源:* ${secureUserTag}`
+        ? `📝 *新消息:*\n${escapedUserText}\n\n📍 *来源:* ${secureUserTag}`
+        : `${userInfo.header}\n📝 *消息内容:*\n${escapedUserText}\n\n📍 *来源:* ${secureUserTag}`
       
       forwardResult = await sendMessage(env.ADMIN_CHAT_ID, forwardText, env.BOT_TOKEN, messageOptions)
     } else {
@@ -1075,7 +1081,8 @@ async function handleAdminMessage(message, env) {
       
       const userList = recentUsers.map((user, index) => {
         const lastActive = new Date(user.lastActive).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
-        return `${index + 1}. ${user.userName}\n   ID: \`${user.chatId}\`\n   最后活跃: ${lastActive}`
+        const escapedName = escapeMarkdown(user.userName)
+        return `${index + 1}. ${escapedName}\n   ID: \`${user.chatId}\`\n   最后活跃: ${lastActive}`
       }).join('\n\n')
 
       await sendMessage(env.ADMIN_CHAT_ID, 
