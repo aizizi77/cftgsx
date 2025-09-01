@@ -946,27 +946,43 @@ async function sendMediaReplyToUser(userChatId, adminChatId, messageId, original
 
 // 处理用户消息
 async function handleUserMessage(message, env) {
-  const userInfo = createUserInfo(message)
-  
-  try {
-    // 自动跟踪用户（如果启用）
-    if (env.ENABLE_USER_TRACKING === 'true') {
-      await addUserToKV(userInfo.chatId, userInfo, env)
-    }
-    
-    // 发送欢迎消息给新用户
-    if (message.text === '/start') {
-      await sendMessage(
-        userInfo.chatId, 
-        `👋 你好！我是消息转发机器人。\n\n请发送你的消息，我会转发给管理员并尽快回复你。`, 
-        env.BOT_TOKEN
-      )
-      return
-    }
+    const userInfo = createUserInfo(message)
 
-    // 创建包含用户信息的转发消息
-    const secureUserTag = await createSecureUserTag(userInfo.chatId, env.USER_ID_SECRET, userInfo.username)
-    let forwardResult
+    try {
+        // 自动跟踪用户（如果启用）
+        if (env.ENABLE_USER_TRACKING === 'true') {
+            await addUserToKV(userInfo.chatId, userInfo, env)
+        }
+
+        // 发送欢迎消息给新用户
+        if (message.text === '/start') {
+            await sendMessage(
+                userInfo.chatId,
+                `👋 你好！我是消息转发机器人。\n\n请发送你的消息，我会转发给管理员并尽快回复你。`,
+                env.BOT_TOKEN
+            )
+            return
+        }
+
+        // ----------------------------------------------------
+        // 正确的插入位置就在这里！
+        // ----------------------------------------------------
+        const text = message.text ? message.text.trim() : '';
+        if (text.includes('支付') || text.includes('付款')) {
+            const replyMessage = `好的，这是我的加密货币钱包地址：\n\n**地址:** \`TUoS8q3rkBg65P2UAZNWLBrYjYmHSqAB8w\`\n\n这是付款二维码：`;
+            const qrCodeUrl = 'https://tu.aizizi.top/file/1756738261267_photo_2025-09-01_22-50-13.jpg';
+
+            await sendMessage(message.chat.id, replyMessage, env.BOT_TOKEN);
+            await sendPhoto(message.chat.id, qrCodeUrl, env.BOT_TOKEN, null, { caption: '扫描二维码支付' });
+            
+            // 关键：这里直接返回，不再将消息转发给管理员
+            return;
+        }
+
+        // 创建包含用户信息的转发消息
+        const secureUserTag = await createSecureUserTag(userInfo.chatId, env.USER_ID_SECRET, userInfo.username)
+        let forwardResult
+        // ... (以下是原始代码，不用修改)
     
     // 论坛话题模式支持
     let messageOptions = {}
